@@ -1,0 +1,12 @@
+*.class
+*.jar
+
+.classpath
+.project
+
+.ceylon/*
+.exploded/*
+.settings/*
+modules/*
+/.exploded/
+/bin/
