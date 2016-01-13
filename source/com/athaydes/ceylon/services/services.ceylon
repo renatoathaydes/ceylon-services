@@ -3,46 +3,48 @@ import ceylon.language.meta.model {
 	Type
 }
 
-shared interface ServiceRequirement {
-	shared formal String name;
-}
+shared interface ServiceRequirement {}
 
 shared interface ServiceAttribute {
-	shared formal String name;
-	shared default Boolean meets(ServiceRequirement requirement)
-			=> this.name == requirement.name;
+	shared default Boolean meets(ServiceRequirement requirement) => false;
 }
 
 shared class NamedServiceAttribute(
-	shared actual String name)
-		satisfies ServiceAttribute {}
+	shared String name)
+		satisfies ServiceAttribute {
+	shared actual Boolean meets(ServiceRequirement requirement)
+			=> switch (requirement)
+				case (is NamedServiceRequirement) this.name == requirement.name
+				else false;
+	
+	string = "NamedServiceAttribute=``name``";
+}
+
+shared object singleton satisfies ServiceAttribute {}
+
+shared object component satisfies ServiceAttribute {}
 
 shared class NamedServiceRequirement(
-	shared actual String name)
-		satisfies ServiceRequirement {}
+	shared String name)
+		satisfies ServiceRequirement {
+	string = "NamedServiceRequirement='``name``'";
+}
 
 shared class ProvidedService<out Service, out ServiceImpl>(
 	shared Type<Service> -> ClassModel<ServiceImpl, Nothing> serviceType,
 	shared {ServiceAttribute*} attributes = {})
-		given ServiceImpl satisfies Service {}
+		given ServiceImpl satisfies Service {
+	string = "``serviceType``(``attributes``)";
+}
 
-shared class CeylonModule(
-	shared {<Type<Anything> -> [ServiceRequirement*]>*} requiredServices = {},
-	shared {ProvidedService<Anything, Anything>*} providedServices = {}) {}
-
-shared {ProvidedService<Anything, Anything>*} providedBy({CeylonModule*} ceylonModules)
-		=> { for (mod in ceylonModules) mod.providedServices }.flatMap(identity);
-
-shared {<Type<Anything> -> [ServiceRequirement*]>*} requiredBy({CeylonModule*} ceylonModules)
-		=> { for (mod in ceylonModules) mod.requiredServices }.flatMap(identity);
-
-shared <Type<Anything>->ClassModel<Anything,Nothing>>[] matchServices(
+shared <AnyType -> {ProvidedService<Anything, Anything>*}>[] matchServices(
 	{ProvidedService<Anything, Anything>*} providedServices,
-	{<Type<Anything> -> [ServiceRequirement*]>*} requiredServices)
-	=> [for (required->requirements in requiredServices)
-		for (providedService in providedServices)
-			if (providedService.serviceType.key.subtypeOf(required),
-				requirements.every((req)
-					=> providedService.attributes.any((attr) => attr.meets(req))))
-				required -> providedService.serviceType.item
+	{<AnyType -> [ServiceRequirement*]>*} requiredServices)
+	=> [for (required -> requirements in requiredServices)
+			let (candidateServices = providedServices.filter((service)
+					=> service.serviceType.key.subtypeOf(required)),
+				 matchedServices = candidateServices.filter((service)
+				 	=> requirements.every((req)
+						=> service.attributes.any((attr) => attr.meets(req)))))
+			required -> matchedServices
 	];
