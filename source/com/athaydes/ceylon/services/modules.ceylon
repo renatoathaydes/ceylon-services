@@ -22,9 +22,13 @@ shared class CeylonModule(
 	string = "CeylonModule(``name``)";
 }
 
-object serviceFactory {
+shared object serviceFactory {
 	
-	value servicesByModule = HashMap<CeylonModule, MutableList<AnyType -> ServiceReference>>();
+	value servicesByType = HashMap<AnyType, MutableList<AnyType -> ServiceReference>>();
+	
+	shared void clear() {
+		servicesByType.clear();
+	}
 	
 	shared ServiceReference createServiceRef(CeylonModule ceylonModule)(
 		AnyType apiType,
@@ -34,18 +38,18 @@ object serviceFactory {
 		
 		function newModuleEntry() {
 			value entries = ArrayList<AnyType -> ServiceReference>(3);
-			servicesByModule.put(ceylonModule, entries);
+			servicesByType.put(apiType, entries);
 			return entries;
 		}
 		
-		value refs = servicesByModule[ceylonModule] else newModuleEntry();
+		value refs = servicesByType[apiType] else newModuleEntry();
 		refs.add(apiType -> ref);
 		
 		return ref;
 	}
 	
 	shared {ServiceReference?*} getReferences(CeylonModule ceylonModule)(AnyType apiType) {
-		value entries = servicesByModule[ceylonModule] else {};
+		value entries = servicesByType[apiType] else {};
 		return {
 			for (type -> ref in entries)
 			if (apiType.subtypeOf(type)) then ref else null
@@ -54,18 +58,11 @@ object serviceFactory {
 
 }
 
-
-shared void a1() {
-		
-}
-
-
 shared class ServiceReference(
 	ProvidedService<Anything,Anything> serviceImpl,
 	{<Constructor -> {{ServiceReference+}*}?>*}() getConstructors) {
 	
 	Object? getNewService() {
-		print("====== Attempting to get new service ``serviceImpl.serviceType.item`` ========");
 		value constructors = getConstructors();
 		
 		value constructorEntries = {
@@ -73,8 +70,9 @@ shared class ServiceReference(
 			if (is Object refs) constructor -> refs
 		};
 		
-		"There should be at least one callable constructor but none were found"
-		assert(!constructorEntries.empty);
+		if (constructorEntries.empty) {
+			throw Exception("There should be at least one callable constructor but none were found: ``constructors``");
+		}
 
 		for (constructor -> paramMatchesAlternatives in constructorEntries) {
 			variable [Object*]? resolvedParameterServices = [];
@@ -123,11 +121,12 @@ shared class ServiceReference(
 			}
 		}
 		
-		shared variable Object?() getService = () {
+		shared variable Object?() getSingleton = () {
 			value service = initializeService();
-			getService = () => service;
+			getSingleton = () => service;
 			return service;
 		};
+		
 	}
 	
 	string = "ServiceReference(``serviceImpl``)";
@@ -140,10 +139,13 @@ shared class ServiceReference(
 	shared Boolean componentService
 			= serviceAttributes.any((attr) => attr == component); 
 	
-	shared Object?() getService = 
-			if (singletonService)
-			then singletonRef.getService
-			else getNewService;
+	shared Object? getService() {
+		if (singletonService) {
+			return singletonRef.getSingleton();
+		} else {
+			return getNewService();
+		}
+	}
 	
 }
 
@@ -163,7 +165,7 @@ void verifyRequirementsMet(<AnyType->{ProvidedService<Anything,Anything>*}>[] ma
 
 [ServiceReference*] createServiceRefs(
 	CeylonModule ceylonModule,
-	<AnyType -> {ProvidedService<Anything,Anything>*}>[] matches) {
+	<AnyType -> {ProvidedService<Anything,Anything>*}>[] ms) {
 
 	function resolveConstructors(ConcreteType implType)() {
 		
@@ -198,20 +200,14 @@ void verifyRequirementsMet(<AnyType->{ProvidedService<Anything,Anything>*}>[] ma
 			.collect(serviceRefsForParametersOf);		
 	}
 
-	value components = ceylonModule.providedServices
-			.filter((provided) => provided.attributes.any((attr)
-				=> attr == component))
-			.map((provided) => provided.serviceType.key -> {provided});
-
 	return [
-		for (apiType -> implTypes in matches.chain(components).distinct)
-		for (impl in implTypes)
+		for (provided in ceylonModule.providedServices)
 		serviceFactory.createServiceRef(ceylonModule)
-			(apiType, impl, resolveConstructors(impl.serviceType.item))
+			(provided.serviceType.key, provided, resolveConstructors(provided.serviceType.item))
 	];
 }
 
-shared [ServiceReference*] createServiceRefsForModule(
+[ServiceReference*] createServiceRefsForModule(
 	CeylonModule ceylonModule,
 	{ProvidedService<Anything, Anything>*} providedServices) {
 	print("Initializing module: ``ceylonModule``");

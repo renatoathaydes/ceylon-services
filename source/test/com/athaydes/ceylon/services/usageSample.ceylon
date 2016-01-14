@@ -24,7 +24,7 @@ class Main(HelloService service) {
 	service.sayHello("World");
 }
 
-shared void runSample() {	
+shared void runSample() {
 	value module1 = CeylonModule {
 		name = "Module 1";
 		requiredServices = { `HelloService` -> [NamedServiceRequirement("EN")] };
