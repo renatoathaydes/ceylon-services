@@ -62,7 +62,13 @@ shared class ServiceReference(
 	ProvidedService<Anything,Anything> serviceImpl,
 	{<Constructor -> {{ServiceReference+}*}?>*}() getConstructors) {
 	
-	Object? getNewService() {
+	value serviceType = serviceImpl.serviceType.item;
+	
+	Object? getNewService(Set<ConcreteType> parentTypes) {
+		if (serviceType in parentTypes) {
+			throw CircularDependenciesException("Service ``serviceType`` depends on itself through types ``parentTypes``");
+		}
+		
 		value constructors = getConstructors();
 		
 		value constructorEntries = {
@@ -81,10 +87,11 @@ shared class ServiceReference(
 				"Expected constructor to have no parameters"
 				assert(constructor.parameterTypes.empty);
 			} else {
+				value allParents = parentTypes | set { serviceType };
 				for (matches in paramMatchesAlternatives) {
 					value goodMatches = [
 						for (match in matches)
-						if (exists service = match.getService()) service
+						if (exists service = match.getService(allParents)) service
 					];
 					if (constructor.parameterTypes.size == goodMatches.size) {
 						resolvedParameterServices = goodMatches;
@@ -106,24 +113,24 @@ shared class ServiceReference(
 			}
 		}
 		
-		throw Exception("Cannot instantiate service ``serviceImpl.serviceType.item`` as no constructor could be resolved.
+		throw Exception("Cannot instantiate service ``serviceType`` as no constructor could be resolved.
 		                 Attempted constructors: ``constructors``");
 	}
 
 	object singletonRef {
 		
-		Object initializeService() {
-			value instance = getNewService();
+		Object initializeService(Set<ConcreteType> parentTypes) {
+			value instance = getNewService(parentTypes);
 			if (exists instance) {
 				return instance;
 			} else {
-				throw Exception("Could not create singleton instance of ``serviceImpl.serviceType.item``");
+				throw Exception("Could not create singleton instance of ``serviceType``");
 			}
 		}
 		
-		shared variable Object?() getSingleton = () {
-			value service = initializeService();
-			getSingleton = () => service;
+		shared variable Object?(Set<ConcreteType>) getSingleton = (Set<ConcreteType> parentTypes) {
+			value service = initializeService(parentTypes);
+			getSingleton = (Set<ConcreteType> parentTypes) => service;
 			return service;
 		};
 		
@@ -139,11 +146,11 @@ shared class ServiceReference(
 	shared Boolean componentService
 			= serviceAttributes.any((attr) => attr == component); 
 	
-	shared Object? getService() {
+	shared Object? getService(Set<ConcreteType> parentTypes) {
 		if (singletonService) {
-			return singletonRef.getSingleton();
+			return singletonRef.getSingleton(parentTypes);
 		} else {
-			return getNewService();
+			return getNewService(parentTypes);
 		}
 	}
 	
@@ -231,6 +238,6 @@ shared void initializeModules(
 	
 	for (serviceRef in serviceRefs.filter(ServiceReference.componentService)) {
 		print("Creating component: ``serviceRef``");
-		serviceRef.getService();
+		serviceRef.getService(emptySet);
 	}
 }
