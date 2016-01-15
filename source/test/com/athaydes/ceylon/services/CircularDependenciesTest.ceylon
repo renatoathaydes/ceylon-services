@@ -3,7 +3,7 @@ import ceylon.test {
 	assertThatException
 }
 
-import com.athaydes.ceylon.services {
+import com.athaydes.ceylon.services.core {
 	component,
 	initializeModules,
 	CeylonModule,

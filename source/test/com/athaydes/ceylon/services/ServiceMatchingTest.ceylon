@@ -3,7 +3,7 @@ import ceylon.test {
 	assertEquals
 }
 
-import com.athaydes.ceylon.services {
+import com.athaydes.ceylon.services.core {
 	ProvidedService,
 	NamedServiceAttribute,
 	NamedServiceRequirement,

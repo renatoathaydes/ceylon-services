@@ -4,7 +4,7 @@ import ceylon.test {
 	beforeTest
 }
 
-import com.athaydes.ceylon.services {
+import com.athaydes.ceylon.services.core {
 	component,
 	CeylonModule,
 	ProvidedService,
