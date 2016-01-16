@@ -3,10 +3,12 @@
 
 .classpath
 .project
+.gradle
 
 .ceylon/*
 .exploded/*
 .settings/*
-modules/*
-/.exploded/
-/bin/
+**/modules/
+**/bin/
+**/build/
+**/auto-generated/
