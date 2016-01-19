@@ -1,0 +1,20 @@
+buildscript {
+    repositories {
+        jcenter()
+        mavenLocal()
+    }
+
+    dependencies {
+        classpath "com.athaydes.gradle.ceylon:ceylon-gradle-plugin:1.1-SNAPSHOT"
+    }
+}
+
+apply plugin: 'com.athaydes.ceylon'
+
+group = 'com.athaydes.ceylon_services'
+version = '1.0'
+
+ceylon {
+	module = 'com.athaydes.ceylon.services.core'
+	output = file 'modules'
+}

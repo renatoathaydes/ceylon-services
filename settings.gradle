@@ -1,0 +1,7 @@
+include 'tests:java-se-service',
+        'tests:ceylon-java-se-service',
+        'tests:ceylon-services-core-tests',
+        'tests:ceylon-services-java-tests',
+        'projects:ceylon-services-core',
+        'projects:ceylon-services-java'
+        
